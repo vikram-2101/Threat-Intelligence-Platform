@@ -1,0 +1,114 @@
+services:
+  tip-postgres:
+    image: postgres:15-alpine
+    container_name: tip-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-tip}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - tip-network
+
+  tip-redis:
+    image: redis:7-alpine
+    container_name: tip-redis
+    restart: always
+    networks:
+      - tip-network
+
+  tip-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tip-api
+    restart: always
+    env_file:
+      - .env
+    volumes:  
+      - ./backend:/app
+    depends_on:
+      - tip-postgres
+      - tip-redis
+    ports:
+      - "8000:8000"
+    networks:
+      - tip-network
+
+  tip-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tip-worker
+    command: celery -A app.workers.celery_app worker --loglevel=info
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - tip-redis
+      - tip-postgres
+    networks:
+      - tip-network
+
+  tip-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tip-beat
+    command: celery -A app.workers.celery_app beat --loglevel=info
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - tip-redis
+      - tip-postgres
+    networks:
+      - tip-network
+
+  tip-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tip-frontend
+    restart: always
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - tip-network
+
+  tip-nginx:
+    image: nginx:alpine
+    container_name: tip-nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - tip-api
+      - tip-frontend
+    networks:
+      - tip-network
+
+  tip-admin-db:
+    image: adminer:latest
+    container_name: tip-adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    networks:
+      - tip-network
+
+networks:
+  tip-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
