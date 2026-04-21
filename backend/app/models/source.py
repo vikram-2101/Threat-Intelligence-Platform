@@ -45,6 +45,8 @@ class Source(Base):
         DateTime(timezone=True), nullable=True
     )
     last_pull_status: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    last_pull_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    consecutive_failures: Mapped[int] = mapped_column(default=0, nullable=False)
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

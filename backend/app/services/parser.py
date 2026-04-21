@@ -17,20 +17,34 @@ class IndicatorParser:
         reader = csv.reader(f)
         
         for row in reader:
-            if not row:
+            if not row or not row[0]:
                 continue
             
+            # Skip header if present
+            if row[0].strip().lower() in ("type", "indicator_type", "category"):
+                continue
+
             # Case 1: Type and Value present
             if len(row) >= 2:
+                itype_str = row[0].strip().upper()
+                ivalue = row[1].strip()
+                
+                # Try to map string to enum
+                itype = None
                 try:
-                    # Normalize type string to enum
-                    itype_str = row[0].strip().upper()
                     itype = IndicatorType(itype_str)
-                    ivalue = row[1].strip()
-                    indicators.append((itype, ivalue))
                 except ValueError:
-                    # If first col isn't a valid type, treat whole row as data or skip
-                    indicators.append(IndicatorParser.smart_detect(row[0]))
+                    # Check member names
+                    for member in IndicatorType:
+                        if member.name == itype_str:
+                            itype = member
+                            break
+                
+                if itype:
+                    indicators.append((itype, ivalue))
+                else:
+                    # Fallback to smart detection on the original row or skip
+                    indicators.append(IndicatorParser.smart_detect(row[0] if len(row) == 1 else row[1]))
             
             # Case 2: One column only
             elif len(row) == 1:

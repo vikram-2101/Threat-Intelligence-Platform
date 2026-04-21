@@ -1,84 +1,110 @@
+"""
+conftest.py — Shared fixtures for all TIP test phases.
+Place this file in your tests/ directory (or root tests/ folder).
+
+Usage:
+    pytest tests/ -v
+    pytest tests/test_phase0_auth.py -v
+    pytest tests/ -k "not TestDecay" -v    # skip slow decay tests
+"""
 import pytest
 import pytest_asyncio
-import asyncio
-from typing import AsyncGenerator, Generator
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from app.main import app
-from app.api.deps import get_db
-from app.db.base import Base
-from app.core.config import settings
-from unittest.mock import patch
-import fakeredis.aioredis
+import httpx
 
-# Test Database Configuration
-# We use the same DB but with a schema/transaction isolated per test
-TEST_DATABASE_URL = settings.DATABASE_URL # Normally we'd use a different name, but for this dev env we use transactions
 
-test_engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
-TestSessionLocal = async_sessionmaker(
-    bind=test_engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autocommit=False,
-    autoflush=False,
-)
+# ─── Configuration ────────────────────────────────────────────────────────────
 
-@pytest.fixture(scope="session")
-def event_loop() -> Generator:
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+BASE_URL = "http://localhost:8000"
 
-@pytest_asyncio.fixture(scope="session", autouse=True)
-async def setup_test_db():
-    # Setup: Create all tables for tests
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    # Teardown: Clean up
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "admin123"
+
+ANALYST_USERNAME = "analyst"
+ANALYST_PASSWORD = "analyst123"
+
+
+# ─── Client ───────────────────────────────────────────────────────────────────
 
 @pytest_asyncio.fixture
-async def db_session() -> AsyncGenerator[AsyncSession, None]:
-    async with TestSessionLocal() as session:
-        # Start a transaction
-        await session.begin()
-        yield session
-        # Rollback everything after the test to keep isolation
-        await session.rollback()
+async def client():
+    """Shared async HTTP client for all tests."""
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30.0) as c:
+        yield c
+
+
+# ─── Tokens ───────────────────────────────────────────────────────────────────
 
 @pytest_asyncio.fixture
-async def async_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
-    # Override get_db to use our test session
-    async def override_get_db():
-        yield db_session
+async def admin_token(client: httpx.AsyncClient) -> str:
+    resp = await client.post("/api/v1/auth/login", data={
+        "username": ADMIN_USERNAME,
+        "password": ADMIN_PASSWORD
+    })
+    assert resp.status_code == 200, (
+        f"Admin login failed ({resp.status_code}): {resp.text}\n"
+        "Make sure the admin seed ran successfully."
+    )
+    return resp.json()["access_token"]
 
-    app.dependency_overrides[get_db] = override_get_db
-    async with AsyncClient(app=app, base_url="http://test") as client:
-        yield client
-    app.dependency_overrides.clear()
-
-@pytest_asyncio.fixture
-async def mock_redis():
-    """
-    Mocks the Redis client using fakeredis for PUBSUB verification.
-    """
-    from app.core.redis import redis_manager
-    fake = fakeredis.aioredis.FakeRedis(decode_responses=True)
-    with patch.object(redis_manager, "client", fake):
-        yield fake
 
 @pytest_asyncio.fixture
-async def admin_token_headers() -> dict:
+async def analyst_token(client: httpx.AsyncClient) -> str:
+    resp = await client.post("/api/v1/auth/login", data={
+        "username": ANALYST_USERNAME,
+        "password": ANALYST_PASSWORD
+    })
+    if resp.status_code != 200:
+        pytest.skip(f"Analyst user not found ({ANALYST_USERNAME}) — create it first via admin.")
+    return resp.json()["access_token"]
+
+
+# ─── Headers ──────────────────────────────────────────────────────────────────
+
+@pytest_asyncio.fixture
+async def admin_headers(admin_token: str) -> dict:
+    return {"Authorization": f"Bearer {admin_token}"}
+
+
+@pytest_asyncio.fixture
+async def analyst_headers(analyst_token: str) -> dict:
+    return {"Authorization": f"Bearer {analyst_token}"}
+
+
+# ─── Source fixture ───────────────────────────────────────────────────────────
+
+@pytest_asyncio.fixture
+async def created_source(client: httpx.AsyncClient, admin_headers: dict) -> dict:
     """
-    Provides valid JWT headers for an admin user.
-    Since we are testing the API layer, we can either mock the auth 
-    dependency or provide a real token for a test admin.
-    For integration tests, providing a real token is more comprehensive.
+    Creates a reusable test source with a unique name to avoid collisions.
+    Deleted automatically after the test via finalizer.
     """
-    from app.core.security import create_access_token
-    # We'll use a hardcoded admin username for tests
-    access_token = create_access_token(data={"sub": "admin"})
-    return {"Authorization": f"Bearer {access_token}"}
+    import uuid
+    uid = uuid.uuid4().hex[:6]
+    resp = await client.post("/api/v1/sources/", headers=admin_headers, json={
+        "name": f"Pytest Source {uid} - Auto Cleanup",
+        "category": "community",
+        "trust_tier": "HIGH",
+        "default_weight": 1.0,
+        "intent_description": "Created by pytest fixture, cleaned up after test",
+        "is_active": True
+    })
+    assert resp.status_code in (200, 201), (
+        f"Failed to create test source: {resp.status_code} {resp.text}"
+    )
+    source = resp.json()
+
+    yield source
+
+    # Teardown — best-effort delete (may already be deleted by delete tests)
+    await client.delete(
+        f"/api/v1/sources/{source['id']}",
+        headers=admin_headers
+    )
+
+
+# ─── pytest.ini settings (add to pyproject.toml instead if preferred) ─────────
+#
+# [tool.pytest.ini_options]
+# asyncio_mode = "auto"
+# testpaths = ["tests"]
+# addopts = "-v --tb=short"

@@ -64,6 +64,11 @@ class Indicator(Base):
         back_populates="indicator"
     )
 
+    @property
+    def confidence_history(self) -> list["ConfidenceSnapshot"]:
+        """Alias for snapshots to match the schema field name."""
+        return self.snapshots
+
 class IndicatorSource(Base):
     __tablename__ = "indicator_sources"
 

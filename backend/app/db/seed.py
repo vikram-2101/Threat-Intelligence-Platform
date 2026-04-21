@@ -1,6 +1,6 @@
 import asyncio
 import uuid
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.db.session import AsyncSessionLocal
 from app.models.user import User, Role, UserRole, RoleName
 from app.core.security import get_password_hash
@@ -41,7 +41,6 @@ async def seed_data():
                 await db.flush()
                 
                 # Assign Admin Role
-                from sqlalchemy import func
                 user_role = UserRole(
                     user_id=admin_user.id,
                     role_id=role_objs[RoleName.ADMIN].id,
@@ -49,6 +48,46 @@ async def seed_data():
                     granted_by=admin_user.id  # Self-assigned for initial seed
                 )
                 db.add(user_role)
+
+            # 3. Seed Default Analyst User
+            analyst_username = "analyst"
+            res = await db.execute(select(User).where(User.username == analyst_username))
+            analyst_user = res.scalar_one_or_none()
+
+            if not analyst_user:
+                analyst_user = User(
+                    username=analyst_username,
+                    email="analyst@tip.example.com",
+                    password_hash=get_password_hash("analyst123"),
+                    is_active=True
+                )
+                db.add(analyst_user)
+                await db.flush()
+
+                # Assign Analyst Role
+                user_role = UserRole(
+                    user_id=analyst_user.id,
+                    role_id=role_objs[RoleName.ANALYST].id,
+                    granted_at=func.now(),
+                    granted_by=admin_user.id
+                )
+                db.add(user_role)
+
+            # 4. Seed Placeholder Sources
+            from app.models.source import Source, SourceCategory, TrustTier
+            source_name = "Community Intel"
+            res = await db.execute(select(Source).where(Source.name == source_name))
+            if not res.scalar_one_or_none():
+                placeholder_source = Source(
+                    name=source_name,
+                    category=SourceCategory.community,
+                    trust_tier=TrustTier.LOW,
+                    default_weight=0.5,
+                    pull_url="http://example.com/feed.txt",
+                    is_active=False,
+                    consecutive_failures=0
+                )
+                db.add(placeholder_source)
 
             print("Database seeding completed.")
 

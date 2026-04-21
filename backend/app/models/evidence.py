@@ -24,7 +24,6 @@ class EvidenceType(str, enum.Enum):
     ANALYST_NOTE = "ANALYST_NOTE"
     ANALYST_ADJUSTMENT = "ANALYST_ADJUSTMENT"
     REVOCATION = "REVOCATION"
-    INGESTION = "INGESTION"
 
 class Evidence(Base):
     __tablename__ = "evidence"

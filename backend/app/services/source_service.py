@@ -2,6 +2,8 @@ import uuid
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from fastapi import HTTPException, status
 from app.models.source import Source
 from app.schemas.source import SourceCreate, SourceUpdate
 
@@ -10,9 +12,16 @@ class SourceService:
     async def create_source(db: AsyncSession, source_in: SourceCreate) -> Source:
         source = Source(**source_in.model_dump())
         db.add(source)
-        await db.commit()
-        await db.refresh(source)
-        return source
+        try:
+            await db.commit()
+            await db.refresh(source)
+            return source
+        except IntegrityError:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Source with name '{source.name}' already exists"
+            )
 
     @staticmethod
     async def get_source(db: AsyncSession, source_id: uuid.UUID) -> Optional[Source]:

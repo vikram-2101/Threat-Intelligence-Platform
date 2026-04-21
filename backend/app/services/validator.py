@@ -1,20 +1,13 @@
 import re
 import ipaddress
 from urllib.parse import urlparse, urlunparse
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Any
 from pydantic import BaseModel
 from app.models.indicator import IndicatorType
 
-class ValidationItem(BaseModel):
-    raw: str
-    type: IndicatorType
-    normalized: Optional[str] = None
-    is_valid: bool = False
-    error: Optional[str] = None
-
-class ValidationBatchResult(BaseModel):
-    valid: List[ValidationItem]
-    invalid: List[ValidationItem]
+from app.schemas.indicator import ValidationItem, ValidationBatchResult as ValidationBatchResultModel
+# We use an alias to avoid conflict if needed, or just use them.
+# Actually, the original code used ValidationBatchResult.
 
 class IndicatorValidator:
     @staticmethod
@@ -84,8 +77,16 @@ class IndicatorValidator:
         return False, "Invalid domain format"
 
     @staticmethod
-    def validate_hash(value: str, htype: IndicatorType) -> Tuple[bool, Optional[str]]:
+    def validate_hash(value: str, htype: Any) -> Tuple[bool, Optional[str]]:
         val = value.strip().lower()
+        
+        # Ensure we have the Enum member if passed as string
+        if isinstance(htype, str):
+            try:
+                htype = IndicatorType(htype.upper())
+            except ValueError:
+                return False, f"Invalid hash type string: {htype}"
+
         hash_rules = {
             IndicatorType.MD5: (32, r"^[a-f0-9]{32}$"),
             IndicatorType.SHA1: (40, r"^[a-f0-9]{40}$"),
@@ -98,7 +99,7 @@ class IndicatorValidator:
         length, pattern = hash_rules[htype]
         if re.match(pattern, val):
             return True, val
-        return False, f"Invalid {htype} format (expected {length} hex chars)"
+        return False, f"Invalid {htype.value if hasattr(htype, 'value') else htype} format (expected {length} hex chars)"
 
     @classmethod
     def validate_indicator(cls, itype: IndicatorType, value: str) -> ValidationItem:
@@ -134,7 +135,7 @@ class IndicatorValidator:
         return item
 
     @classmethod
-    def validate_batch(cls, indicators: List[Tuple[IndicatorType, str]]) -> ValidationBatchResult:
+    def validate_batch(cls, indicators: List[Tuple[IndicatorType, str]]) -> ValidationBatchResultModel:
         valid = []
         invalid = []
         for itype, val in indicators:
@@ -143,4 +144,4 @@ class IndicatorValidator:
                 valid.append(res)
             else:
                 invalid.append(res)
-        return ValidationBatchResult(valid=valid, invalid=invalid)
+        return ValidationBatchResultModel(valid=valid, invalid=invalid)

@@ -57,6 +57,22 @@ class IndicatorUpdate(BaseModel):
     current_confidence: Optional[float] = Field(None, ge=0, le=100)
     ttl: Optional[datetime] = None
 
+class EvidenceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    evidence_type: str
+    timestamp: datetime
+    confidence_delta: float
+    raw_payload: dict
+    reversible: bool
+    reversed: bool
+
+class ConfidenceSnapshotResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    score: float
+    reason_summary: dict
+    calculated_at: datetime
+
 class IndicatorResponse(IndicatorBase):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -65,6 +81,9 @@ class IndicatorResponse(IndicatorBase):
     ttl: datetime
     status: IndicatorStatus
     current_confidence: float
+    # Nested fields for detail view
+    evidence: List[EvidenceResponse] = []
+    confidence_history: List[ConfidenceSnapshotResponse] = []
 
 class IngestionResponse(BaseModel):
     ingested: int
