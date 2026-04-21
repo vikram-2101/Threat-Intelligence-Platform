@@ -35,10 +35,10 @@ class TestIngestHappyPath:
         resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [
-                {"type": "ipv4",   "value": f"10.20.30.{uuid.uuid4().int % 255}"},
-                {"type": "ipv6",   "value": f"2001:db8::{u}"},
-                {"type": "domain", "value": f"malicious-{u}.com"},
-                {"type": "url",    "value": f"http://evil-{u}.com/payload.exe"},
+                {"type": "ipv4",   "value": f"{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}"},
+                {"type": "ipv6",   "value": f"2001:db8::{uuid.uuid4().hex[:4]}:{uuid.uuid4().hex[:4]}"},
+                {"type": "domain", "value": f"malicious-{uuid.uuid4().hex}.com"},
+                {"type": "url",    "value": f"http://evil-{uuid.uuid4().hex}.com/payload.exe"},
                 {"type": "md5",    "value": uuid.uuid4().hex},
                 {"type": "sha1",   "value": (uuid.uuid4().hex + uuid.uuid4().hex)[:40]},
                 {"type": "sha256", "value": (uuid.uuid4().hex + uuid.uuid4().hex)[:64]},
@@ -379,12 +379,14 @@ class TestFileUpload:
     async def test_csv_upload_mixed_valid_invalid(
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
+        ip = f"{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}"
+        domain = f"csv-mixed-{uuid.uuid4().hex[:6]}.com"
         csv_content = (
-            b"type,value\n"
-            b"ipv4,44.55.66.77\n"
-            b"ipv4,not_valid_ip\n"
-            b"domain,csv-mixed.com\n"
-        )
+            "type,value\n"
+            f"ipv4,{ip}\n"
+            "ipv4,not_valid_ip\n"
+            f"domain,{domain}\n"
+        ).encode('utf-8')
         resp = await client.post("/api/v1/indicators/",
             headers=admin_headers,
             data={"source_id": created_source["id"]},
@@ -397,14 +399,16 @@ class TestFileUpload:
     async def test_txt_upload_one_per_line(
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
-        txt_content = b"22.33.44.55\n66.77.88.99\nbad-line!!!\n"
+        ip1 = f"{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}"
+        ip2 = f"{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}"
+        txt_content = f"{ip1}\n{ip2}\nbad-line!!!\n".encode('utf-8')
         resp = await client.post("/api/v1/indicators/",
             headers=admin_headers,
             data={"source_id": created_source["id"]},
             files={"file": ("indicators.txt", io.BytesIO(txt_content), "text/plain")}
         )
         body = resp.json()
-        assert body["ingested"] >= 1    # at least the two valid IPs
+        assert body["ingested"] == 2    # the two valid IPs
 
     async def test_csv_upload_returns_same_schema_as_json(
         self, client: AsyncClient, admin_headers: dict, created_source: dict
