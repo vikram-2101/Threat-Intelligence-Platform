@@ -16,7 +16,7 @@ async def redis_event_bridge():
     pubsub = redis.pubsub()
     
     # Channels to monitor
-    channels = ["indicator.created", "evidence.created"]
+    channels = ["indicator.created", "evidence.created", "correlation.created"]
     await pubsub.subscribe(*channels)
     
     logger.info("redis_bridge_started", subscribed_to=channels)

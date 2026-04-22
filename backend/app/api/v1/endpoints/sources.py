@@ -14,7 +14,7 @@ admin_deps = [Depends(RoleChecker([RoleName.ADMIN]))]
 # Standard active session for read-only operations
 auth_deps = [Depends(get_current_user)]
 
-@router.post("/", response_model=SourceResponse, status_code=status.HTTP_201_CREATED, dependencies=admin_deps)
+@router.post("", response_model=SourceResponse, status_code=status.HTTP_201_CREATED, dependencies=admin_deps)
 async def create_source(
     *,
     db: AsyncSession = Depends(get_db),
@@ -26,7 +26,7 @@ async def create_source(
     """
     return await SourceService.create_source(db, source_in)
 
-@router.get("/", response_model=List[SourceResponse], dependencies=auth_deps)
+@router.get("", response_model=List[SourceResponse], dependencies=auth_deps)
 async def list_sources(
     db: AsyncSession = Depends(get_db),
     skip: int = 0,

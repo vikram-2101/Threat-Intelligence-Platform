@@ -23,7 +23,7 @@ class TestConfidenceScoring:
     ):
         """After enrichment runs, confidence must be > 0 for enrichable types."""
         val = f"scoring-test-{uuid.uuid4().hex[:6]}.com"
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "domain", "value": val}]
         })
@@ -53,7 +53,7 @@ class TestConfidenceScoring:
         """HIGH trust source multiplying evidence should yield higher confidence than LOW trust source."""
         # Create HIGH trust source
         name_high = f"High Trust Scoring Test {uuid.uuid4().hex[:6]}"
-        high_src = (await client.post("/api/v1/sources/", headers=admin_headers, json={
+        high_src = (await client.post("/api/v1/sources", headers=admin_headers, json={
             "name": name_high,
             "category": "commercial",
             "trust_tier": "HIGH",
@@ -62,7 +62,7 @@ class TestConfidenceScoring:
 
         # Create LOW trust source
         name_low = f"Low Trust Scoring Test {uuid.uuid4().hex[:6]}"
-        low_src = (await client.post("/api/v1/sources/", headers=admin_headers, json={
+        low_src = (await client.post("/api/v1/sources", headers=admin_headers, json={
             "name": name_low,
             "category": "community",
             "trust_tier": "LOW",
@@ -72,11 +72,11 @@ class TestConfidenceScoring:
         # Ingest same type to create the base indicators
         val_high = f"high-trust-{uuid.uuid4().hex[:6]}.com"
         val_low = f"low-trust-{uuid.uuid4().hex[:6]}.com"
-        r_high = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        r_high = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": high_src["id"],
             "indicators": [{"type": "domain", "value": val_high}]
         })
-        r_low = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        r_low = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": low_src["id"],
             "indicators": [{"type": "domain", "value": val_low}]
         })
@@ -120,7 +120,7 @@ class TestConfidenceScoring:
         """MD5/SHA1/SHA256 have no enrichers in MVP — confidence should stay at 0."""
         # Use a UUID-based unique hash each run to avoid DB pollution from repeated runs
         unique_hash = (uuid.uuid4().hex + uuid.uuid4().hex)[:64]  # 64 unique hex chars
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{
                 "type": "sha256",
@@ -148,7 +148,7 @@ class TestEvidenceCreation:
     ):
         """After enrichment, the indicator detail must contain evidence records."""
         val = f"evidence-check-{uuid.uuid4().hex[:6]}.com"
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "domain", "value": val}]
         })
@@ -170,7 +170,7 @@ class TestEvidenceCreation:
     ):
         """Every evidence record must have the required fields."""
         val = f"evidence-schema-{uuid.uuid4().hex[:6]}.com"
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "domain", "value": val}]
         })
@@ -196,7 +196,7 @@ class TestEvidenceCreation:
     ):
         """Evidence records must have no updated_at field — they are append-only."""
         val = f"immutable-ev-{uuid.uuid4().hex[:6]}.com"
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "domain", "value": val}]
         })
@@ -221,7 +221,7 @@ class TestConfidenceSnapshots:
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
         val = f"snapshot-{uuid.uuid4().hex[:6]}.com"
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "domain", "value": val}]
         })
@@ -242,7 +242,7 @@ class TestConfidenceSnapshots:
     ):
         """Every snapshot must include a rationale — this is MVP requirement #3."""
         val = f"rationale-{uuid.uuid4().hex[:6]}.com"
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "domain", "value": val}]
         })
@@ -269,7 +269,7 @@ class TestConfidenceSnapshots:
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
         val = f"clamp-{uuid.uuid4().hex[:6]}.com"
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "domain", "value": val}]
         })
@@ -295,7 +295,7 @@ class TestMultiSourceCorrelation:
         """Same indicator seen from 2 sources should score higher than from 1 source."""
         # Create a second source
         name2 = f"Second Source Corr Test {uuid.uuid4().hex[:6]}"
-        src2 = (await client.post("/api/v1/sources/", headers=admin_headers, json={
+        src2 = (await client.post("/api/v1/sources", headers=admin_headers, json={
             "name": name2,
             "category": "research",
             "trust_tier": "MEDIUM",
@@ -303,16 +303,18 @@ class TestMultiSourceCorrelation:
         })).json()
 
         name1 = f"First Source Corr Test {uuid.uuid4().hex[:6]}"
-        src1_id = (await client.post("/api/v1/sources/", headers=admin_headers, json={
+        resp1 = await client.post("/api/v1/sources", headers=admin_headers, json={
             "name": name1,
             "category": "community",
             "trust_tier": "MEDIUM",
             "default_weight": 0.6
-        })).json()["id"]
+        })
+        assert resp1.status_code in (200, 201), f"Status {resp1.status_code}: {resp1.text}"
+        src1_id = resp1.json()["id"]
 
         # Ingest same domain from source 1
         common_val = f"multi-src-{uuid.uuid4().hex[:6]}.com"
-        r = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        r = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": src1_id,
             "indicators": [{"type": "domain", "value": common_val}]
         })
@@ -325,7 +327,7 @@ class TestMultiSourceCorrelation:
         )).json()["current_confidence"]
 
         # Ingest same domain from source 2 (triggers duplicate merge + correlation)
-        await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": src2["id"],
             "indicators": [{"type": "domain", "value": common_val}]
         })
@@ -350,7 +352,7 @@ class TestDecaySmoke:
     ):
         """Rationale must always include decay_factor so analysts can see it applied."""
         val = f"decay-rat-{uuid.uuid4().hex[:6]}.com"
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "domain", "value": val}]
         })

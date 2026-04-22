@@ -11,6 +11,8 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - tip-network
+    ports:
+      - "5433:5432"
 
   tip-redis:
     image: redis:7-alpine
@@ -18,13 +20,22 @@ services:
     restart: always
     networks:
       - tip-network
+    ports:
+      - "6379:6379"
 
   tip-api:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: tip-api
+    user: "celery"
+    command: >
+      sh -c "alembic upgrade head && 
+             python -m app.db.seed && 
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     restart: always
+    environment:
+      - PYTHONPATH=/app
     env_file:
       - .env
     volumes:  
@@ -42,6 +53,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: tip-worker
+    user: "celery"
     command: celery -A app.workers.celery_app worker --loglevel=info
     restart: always
     env_file:
@@ -59,7 +71,10 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: tip-beat
-    command: celery -A app.workers.celery_app beat --loglevel=info
+    user: "celery"
+    command: >
+      sh -c "rm -f celerybeat-schedule && 
+             celery -A app.workers.celery_app beat --loglevel=info"
     restart: always
     env_file:
       - .env
@@ -71,12 +86,32 @@ services:
     networks:
       - tip-network
 
+  tip-bridge:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tip-bridge
+    user: "celery"
+    command: python -m app.workers.redis_bridge
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - tip-redis
+      - tip-api
+    networks:
+      - tip-network
+
   tip-frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: tip-frontend
     restart: always
+    environment:
+      - VITE_API_PROXY_TARGET=http://tip-api:8000
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -102,7 +137,7 @@ services:
     container_name: tip-adminer
     restart: always
     ports:
-      - "8080:8080"
+      - "8081:8080"
     networks:
       - tip-network
 

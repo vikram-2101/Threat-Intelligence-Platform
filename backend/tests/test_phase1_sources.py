@@ -16,7 +16,7 @@ class TestCreateSource:
         self, client: AsyncClient, admin_headers: dict
     ):
         name = f"Minimal Source {uuid.uuid4().hex[:6]}"
-        resp = await client.post("/api/v1/sources/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/sources", headers=admin_headers, json={
             "name": name,
             "category": "community",
             "trust_tier": "LOW",
@@ -33,7 +33,7 @@ class TestCreateSource:
         self, client: AsyncClient, admin_headers: dict
     ):
         name = f"Full Source {uuid.uuid4().hex[:6]}"
-        resp = await client.post("/api/v1/sources/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/sources", headers=admin_headers, json={
             "name": name,
             "category": "commercial",
             "trust_tier": "HIGH",
@@ -54,7 +54,7 @@ class TestCreateSource:
         self, client: AsyncClient, admin_headers: dict
     ):
         name = f"Inactive Placeholder {uuid.uuid4().hex[:6]}"
-        resp = await client.post("/api/v1/sources/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/sources", headers=admin_headers, json={
             "name": name,
             "category": "community",
             "trust_tier": "LOW",
@@ -68,7 +68,7 @@ class TestCreateSource:
     async def test_create_source_duplicate_name_returns_409(
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
-        resp = await client.post("/api/v1/sources/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/sources", headers=admin_headers, json={
             "name": created_source["name"],   # same name as fixture
             "category": "community",
             "trust_tier": "LOW",
@@ -79,7 +79,7 @@ class TestCreateSource:
     async def test_create_source_invalid_trust_tier_returns_422(
         self, client: AsyncClient, admin_headers: dict
     ):
-        resp = await client.post("/api/v1/sources/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/sources", headers=admin_headers, json={
             "name": "Bad Tier Source",
             "category": "community",
             "trust_tier": "ULTRA",        # invalid enum value
@@ -90,7 +90,7 @@ class TestCreateSource:
     async def test_create_source_invalid_category_returns_422(
         self, client: AsyncClient, admin_headers: dict
     ):
-        resp = await client.post("/api/v1/sources/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/sources", headers=admin_headers, json={
             "name": "Bad Cat Source",
             "category": "unknown_category",  # invalid
             "trust_tier": "LOW",
@@ -101,7 +101,7 @@ class TestCreateSource:
     async def test_create_source_weight_out_of_range_returns_422(
         self, client: AsyncClient, admin_headers: dict
     ):
-        resp = await client.post("/api/v1/sources/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/sources", headers=admin_headers, json={
             "name": "Weight Bad",
             "category": "community",
             "trust_tier": "LOW",
@@ -112,7 +112,7 @@ class TestCreateSource:
     async def test_create_source_missing_required_fields_returns_422(
         self, client: AsyncClient, admin_headers: dict
     ):
-        resp = await client.post("/api/v1/sources/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/sources", headers=admin_headers, json={
             "name": "Missing Fields Source"
             # missing: category, trust_tier, default_weight
         })
@@ -123,7 +123,7 @@ class TestCreateSource:
     ):
         """Every field in the response contract must be present."""
         name = f"Schema Check Source {uuid.uuid4().hex[:6]}"
-        resp = await client.post("/api/v1/sources/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/sources", headers=admin_headers, json={
             "name": name,
             "category": "research",
             "trust_tier": "MEDIUM",
@@ -145,7 +145,7 @@ class TestListSources:
     async def test_list_sources_returns_array(
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
-        resp = await client.get("/api/v1/sources/", headers=admin_headers)
+        resp = await client.get("/api/v1/sources", headers=admin_headers)
         assert resp.status_code == 200
         body = resp.json()
         assert isinstance(body, list)
@@ -154,14 +154,14 @@ class TestListSources:
     async def test_list_sources_contains_created_source(
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
-        resp = await client.get("/api/v1/sources/", headers=admin_headers)
+        resp = await client.get("/api/v1/sources?limit=1000", headers=admin_headers)
         ids = [s["id"] for s in resp.json()]
         assert created_source["id"] in ids
 
     async def test_list_sources_each_item_has_required_fields(
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
-        resp = await client.get("/api/v1/sources/", headers=admin_headers)
+        resp = await client.get("/api/v1/sources", headers=admin_headers)
         for source in resp.json():
             assert "id" in source
             assert "name" in source
@@ -279,7 +279,7 @@ class TestDeleteSource:
     ):
         # Create a dedicated source to delete so other tests aren't affected
         name = f"To Be Deleted {uuid.uuid4().hex[:6]}"
-        create_resp = await client.post("/api/v1/sources/", headers=admin_headers, json={
+        create_resp = await client.post("/api/v1/sources", headers=admin_headers, json={
             "name": name,
             "category": "community",
             "trust_tier": "LOW",

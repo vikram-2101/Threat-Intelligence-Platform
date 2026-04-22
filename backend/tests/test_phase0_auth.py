@@ -55,23 +55,23 @@ class TestLogin:
 
 class TestTokenValidation:
     async def test_no_token_returns_401(self, client: AsyncClient):
-        resp = await client.get("/api/v1/sources/")
+        resp = await client.get("/api/v1/sources")
         assert resp.status_code == 401
 
     async def test_malformed_token_returns_401(self, client: AsyncClient):
-        resp = await client.get("/api/v1/sources/", headers={
+        resp = await client.get("/api/v1/sources", headers={
             "Authorization": "Bearer this.is.not.a.jwt"
         })
         assert resp.status_code == 401
 
     async def test_wrong_scheme_returns_401(self, client: AsyncClient):
-        resp = await client.get("/api/v1/sources/", headers={
+        resp = await client.get("/api/v1/sources", headers={
             "Authorization": "Basic admin:postgres"
         })
         assert resp.status_code == 401
 
     async def test_valid_token_grants_access(self, client: AsyncClient, admin_token: str):
-        resp = await client.get("/api/v1/sources/", headers={
+        resp = await client.get("/api/v1/sources", headers={
             "Authorization": f"Bearer {admin_token}"
         })
         assert resp.status_code == 200
@@ -85,7 +85,7 @@ class TestRBAC:
     async def test_analyst_cannot_create_source(
         self, client: AsyncClient, analyst_token: str
     ):
-        resp = await client.post("/api/v1/sources/",
+        resp = await client.post("/api/v1/sources",
             headers={"Authorization": f"Bearer {analyst_token}"},
             json={
                 "name": "Should Be Blocked",
@@ -108,7 +108,7 @@ class TestRBAC:
     async def test_analyst_can_read_sources(
         self, client: AsyncClient, analyst_token: str
     ):
-        resp = await client.get("/api/v1/sources/",
+        resp = await client.get("/api/v1/sources",
             headers={"Authorization": f"Bearer {analyst_token}"}
         )
         assert resp.status_code == 200
@@ -116,7 +116,7 @@ class TestRBAC:
     async def test_analyst_can_ingest_indicators(
         self, client: AsyncClient, analyst_token: str, created_source: dict
     ):
-        resp = await client.post("/api/v1/indicators/",
+        resp = await client.post("/api/v1/indicators",
             headers={"Authorization": f"Bearer {analyst_token}"},
             json={
                 "source_id": created_source["id"],

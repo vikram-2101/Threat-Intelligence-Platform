@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.api import api_router
 from app.api.middleware import AuditMiddleware
 
@@ -8,8 +9,25 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# ── Middleware (order matters: Starlette applies in REVERSE registration order) ─
+# AuditMiddleware must be added AFTER CORSMiddleware so Starlette runs
+# CORSMiddleware first (it was second to be added = first to execute).
+# This ensures CORS preflight and response headers are always present.
+app.add_middleware(AuditMiddleware)   # runs second (inner)
+app.add_middleware(                   # runs first (outer) ← correct for CORS
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost",
+        "http://localhost:80",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(api_router, prefix="/api/v1")
-app.add_middleware(AuditMiddleware)
 
 @app.get("/health")
 async def health_check():
