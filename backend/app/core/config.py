@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
     
+    # CORS Array mapping strictly front-end UI testing scopes
+    FRONTEND_CORS_ORIGINS: list[str] = ["http://localhost", "http://localhost:5173", "https://localhost"]
+    
     # TIP Specifics
     DECAY_LAMBDA: float = 0.05
     AUTO_EXPIRE_THRESHOLD: float = 10.0

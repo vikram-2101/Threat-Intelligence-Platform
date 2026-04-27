@@ -9,6 +9,7 @@ import { IndicatorsPage } from '@/pages/IndicatorsPage'
 import { IndicatorDetailPage } from '@/pages/IndicatorDetailPage'
 import { SourcesPage } from '@/pages/SourcesPage'
 import { IngestPage } from '@/pages/IngestPage'
+import { AuditLogsPage } from '@/pages/AuditLogsPage'
 
 // Configure TanStack Query
 const queryClient = new QueryClient({
@@ -55,6 +56,10 @@ const router = createBrowserRouter([
       {
         path: 'sources',
         element: <SourcesPage />,
+      },
+      {
+        path: 'audit-logs',
+        element: <AuditLogsPage />,
       },
       {
         path: '*',

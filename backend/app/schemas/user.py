@@ -29,3 +29,17 @@ class Token(BaseModel):
 
 class TokenPayload(BaseModel):
     sub: Optional[str] = None
+
+class ApiKeyCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    user_id: uuid.UUID
+
+class ApiKeyResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    key: str
+    name: str
+    user_id: uuid.UUID
+    is_active: bool
+    created_at: datetime
+    last_used: Optional[datetime] = None

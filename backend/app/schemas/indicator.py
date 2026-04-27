@@ -169,3 +169,17 @@ class IngestionResponse(BaseModel):
     errors: int
     error_details: List[ValidationItem]
     indicators: List[IndicatorResponse]
+
+
+# ── Export schemas ─────────────────────────────────────────────────────────────
+
+class IndicatorExportResponse(BaseModel):
+    """Flat schema ensuring clean serialization to CSV and JSON."""
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    type: IndicatorType
+    value: str
+    status: IndicatorStatus
+    current_confidence: float
+    first_seen: datetime
+    last_seen: datetime

@@ -27,6 +27,7 @@ dependencies = [
     "pytest-asyncio",
     "fakeredis",
     "nest-asyncio",
+    "slowapi>=0.1.9",
 ]
 
 [tool.ruff]

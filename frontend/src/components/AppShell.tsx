@@ -4,7 +4,7 @@
  */
 
 import { NavLink, Outlet } from 'react-router-dom'
-import { Shield, List, Database, LogOut, Activity, Bell, UploadCloud } from 'lucide-react'
+import { Shield, List, Database, LogOut, Activity, Bell, UploadCloud, FileText } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { clsx } from 'clsx'
 
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/indicators', icon: List, label: 'Indicators' },
   { to: '/ingest', icon: UploadCloud, label: 'Ingest' },
   { to: '/sources', icon: Database, label: 'Sources' },
+  { to: '/audit-logs', icon: FileText, label: 'Audit Logs' },
 ]
 
 export function AppShell() {

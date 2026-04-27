@@ -1,14 +1,17 @@
 from typing import AsyncGenerator, Annotated, List, Optional
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from jose import jwt, JWTError
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+import datetime
 from app.db.session import AsyncSessionLocal
 from app.core.config import settings
 from app.schemas.user import TokenPayload
 from app.models.user import User, Role, UserRole, RoleName
+from app.models.api_key import ApiKey
 
 # auto_error=False → returns None instead of 401 when Authorization header is missing.
 # This enables DEMO MODE: unauthenticated requests are served as the admin user.
@@ -16,6 +19,7 @@ reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl="/api/v1/auth/login",
     auto_error=False,
 )
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
@@ -23,12 +27,28 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 async def get_current_user(
     db: Annotated[AsyncSession, Depends(get_db)],
-    token: Annotated[Optional[str], Depends(reusable_oauth2)]
+    token: Annotated[Optional[str], Depends(reusable_oauth2)],
+    api_key_str: Annotated[Optional[str], Depends(api_key_header)]
 ) -> User:
+    if api_key_str:
+        result = await db.execute(
+            select(ApiKey)
+            .options(selectinload(ApiKey.user))
+            .where(ApiKey.key == api_key_str, ApiKey.is_active == True)
+        )
+        api_key_record = result.scalar_one_or_none()
+        if api_key_record and api_key_record.user and api_key_record.user.is_active:
+            api_key_record.last_used = datetime.datetime.now(datetime.timezone.utc)
+            db.add(api_key_record)
+            await db.commit()
+            return api_key_record.user
+            
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or inactive API Key",
+        )
+        
     # ── DEMO MODE ────────────────────────────────────────────────────────────
-    # When no Bearer token is present, return the seeded admin user so all
-    # endpoints work without authentication for the presentation.
-    # To restore: remove this block and change auto_error=False → True above.
     if not token:
         result = await db.execute(select(User).where(User.username == "admin"))
         demo_user = result.scalar_one_or_none()

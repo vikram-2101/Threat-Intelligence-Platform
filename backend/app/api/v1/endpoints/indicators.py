@@ -17,12 +17,12 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import get_db, get_current_user
+from app.api.deps import get_db, get_current_user, RoleChecker
 from app.models.indicator import Indicator, IndicatorSource, IndicatorType, IndicatorStatus
 from app.models.evidence import Evidence, EvidenceType
 from app.models.source import Source
 from app.models.confidence_snapshot import ConfidenceSnapshot
-from app.models.user import User
+from app.models.user import User, RoleName
 from app.schemas.indicator import (
     IngestionResponse,
     IndicatorResponse,
@@ -37,7 +37,7 @@ from app.schemas.indicator import (
 from app.services.ingestion_service import IngestionService
 from app.services.parser import IndicatorParser
 
-router = APIRouter(dependencies=[Depends(get_current_user)])
+router = APIRouter(dependencies=[Depends(RoleChecker([RoleName.ADMIN, RoleName.ANALYST, RoleName.API_CONSUMER]))])
 
 # ── CORRELATION EVIDENCE TYPES ─────────────────────────────────────────────────
 CORRELATION_TYPES = {

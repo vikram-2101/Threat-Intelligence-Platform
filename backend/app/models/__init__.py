@@ -4,6 +4,7 @@ from app.models.evidence import Evidence
 from app.models.confidence_snapshot import ConfidenceSnapshot
 from app.models.user import User, Role, UserRole
 from app.models.audit_log import AuditLog
+from app.models.api_key import ApiKey
 
 __all__ = [
     "Source",
@@ -15,4 +16,5 @@ __all__ = [
     "Role",
     "UserRole",
     "AuditLog",
+    "ApiKey",
 ]

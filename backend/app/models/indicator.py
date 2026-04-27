@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
-from sqlalchemy import String, Enum, Numeric, DateTime, func, UniqueConstraint, ForeignKey
+from sqlalchemy import String, Enum, Numeric, DateTime, func, UniqueConstraint, ForeignKey, Index, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -55,6 +55,7 @@ class Indicator(Base):
 
     __table_args__ = (
         UniqueConstraint("type", "value", name="uix_indicator_type_value"),
+        Index("idx_indicators_status_confidence", "status", text("current_confidence DESC")),
     )
 
     # Relationships

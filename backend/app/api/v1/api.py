@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import sources, indicators, auth, analyst_actions
+from app.api.v1.endpoints import sources, indicators, auth, analyst_actions, export, audit_logs
 
 api_router = APIRouter()
 
@@ -11,3 +11,5 @@ api_router.include_router(
     tags=["analyst-actions"],
 )
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router.include_router(export.router, prefix="/export", tags=["export"])
+api_router.include_router(audit_logs.router, prefix="/audit-logs", tags=["audit-logs"])
