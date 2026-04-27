@@ -21,12 +21,7 @@ depends_on = None
 
 
 def upgrade():
-    # Step 1: Delete all INGESTION evidence rows. These are spec-non-compliant rows
-    # that were polluting scores. Safe to remove — they were never real enrichment data.
     op.execute("DELETE FROM evidence WHERE evidence_type::text = 'INGESTION'")
-
-    # Step 2: Reset current_confidence to 0 for any indicator with no remaining evidence.
-    # These are un-enriched indicators whose score was driven by the now-deleted INGESTION rows.
     op.execute("""
         UPDATE indicators
         SET current_confidence = 0
@@ -35,66 +30,50 @@ def upgrade():
         )
     """)
 
-    # Step 3: Safe enum replacement in PostgreSQL —
-    # (a) cast the column to TEXT (breaks the type dependency)
-    op.execute("""
-        ALTER TABLE evidence
-            ALTER COLUMN evidence_type TYPE TEXT
-            USING evidence_type::TEXT
-    """)
+    # Drop partial indexes on evidence_type before mutating the type
+    op.execute("DROP INDEX IF EXISTS idx_evidence_asn")
+    op.execute("DROP INDEX IF EXISTS idx_evidence_ssl")
 
-    # (b) drop the old enum
-    op.execute("DROP TYPE evidence_type")
-
-    # (c) create the new enum without INGESTION
+    op.execute("ALTER TYPE evidence_type RENAME TO evidence_type_old")
     op.execute("""
         CREATE TYPE evidence_type AS ENUM (
-            'WHOIS',
-            'PASSIVE_DNS',
-            'ASN',
-            'SSL_CERT',
-            'CORRELATION_INFRA',
-            'CORRELATION_SSL',
-            'MULTI_SOURCE_SIGHTING',
-            'ANALYST_NOTE',
-            'ANALYST_ADJUSTMENT',
-            'REVOCATION'
+            'WHOIS', 'PASSIVE_DNS', 'ASN', 'SSL_CERT', 'CORRELATION_INFRA',
+            'CORRELATION_SSL', 'MULTI_SOURCE_SIGHTING', 'ANALYST_NOTE',
+            'ANALYST_ADJUSTMENT', 'REVOCATION'
         )
     """)
-
-    # (d) cast the column back to the new enum
     op.execute("""
         ALTER TABLE evidence
             ALTER COLUMN evidence_type TYPE evidence_type
-            USING evidence_type::evidence_type
+            USING evidence_type::text::evidence_type
     """)
+    op.execute("DROP TYPE evidence_type_old")
+
+    # Recreate partial indexes
+    op.execute("CREATE INDEX idx_evidence_asn ON evidence USING GIN(raw_payload) WHERE evidence_type = 'ASN'")
+    op.execute("CREATE INDEX idx_evidence_ssl ON evidence USING GIN(raw_payload) WHERE evidence_type = 'SSL_CERT'")
 
 
 def downgrade():
-    # Re-add INGESTION to the enum (for rollback only)
-    op.execute("""
-        ALTER TABLE evidence
-            ALTER COLUMN evidence_type TYPE TEXT
-            USING evidence_type::TEXT
-    """)
-    op.execute("DROP TYPE evidence_type")
+    op.execute("DROP INDEX IF EXISTS idx_evidence_asn")
+    op.execute("DROP INDEX IF EXISTS idx_evidence_ssl")
+
+    op.execute("ALTER TYPE evidence_type RENAME TO evidence_type_old")
     op.execute("""
         CREATE TYPE evidence_type AS ENUM (
-            'WHOIS',
-            'PASSIVE_DNS',
-            'ASN',
-            'SSL_CERT',
-            'CORRELATION_INFRA',
-            'CORRELATION_SSL',
-            'MULTI_SOURCE_SIGHTING',
-            'ANALYST_NOTE',
-            'ANALYST_ADJUSTMENT',
-            'REVOCATION',
-            'INGESTION'
+            'WHOIS', 'PASSIVE_DNS', 'ASN', 'SSL_CERT', 'CORRELATION_INFRA',
+            'CORRELATION_SSL', 'MULTI_SOURCE_SIGHTING', 'ANALYST_NOTE',
+            'ANALYST_ADJUSTMENT', 'REVOCATION', 'INGESTION'
         )
     """)
     op.execute("""
         ALTER TABLE evidence
             ALTER COLUMN evidence_type TYPE evidence_type
-            USING evidence_type::evidence_type
+            USING evidence_type::text::evidence_type
     """)
+    op.execute("DROP TYPE evidence_type_old")
+
+    op.execute("CREATE INDEX idx_evidence_asn ON evidence USING GIN(raw_payload) WHERE evidence_type = 'ASN'")
+    op.execute("CREATE INDEX idx_evidence_ssl ON evidence USING GIN(raw_payload) WHERE evidence_type = 'SSL_CERT'")
+
+

@@ -4,7 +4,7 @@ import structlog
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from app.models.indicator import Indicator
+from app.models.indicator import Indicator, IndicatorStatus
 from app.models.evidence import Evidence, EvidenceType
 from app.models.source import Source, TrustTier
 from app.models.confidence_snapshot import ConfidenceSnapshot
@@ -154,7 +154,7 @@ class ScoringService:
         # 8. Auto-expire/lifecycle check
         # Score < 10 and TTL elapsed
         if final_score < 10.0 and indicator_q.ttl and indicator_q.ttl < now:
-            indicator_q.status = "EXPIRED"
+            indicator_q.status = IndicatorStatus.EXPIRED
             logger.info("indicator_expired", indicator_id=str(indicator_id), score=final_score, ttl=indicator_q.ttl.isoformat())
 
         return final_score

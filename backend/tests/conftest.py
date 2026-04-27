@@ -80,7 +80,7 @@ async def created_source(client: httpx.AsyncClient, admin_headers: dict) -> dict
     """
     import uuid
     uid = uuid.uuid4().hex[:6]
-    resp = await client.post("/api/v1/sources/", headers=admin_headers, json={
+    resp = await client.post("/api/v1/sources", headers=admin_headers, json={
         "name": f"Pytest Source {uid} - Auto Cleanup",
         "category": "community",
         "trust_tier": "HIGH",

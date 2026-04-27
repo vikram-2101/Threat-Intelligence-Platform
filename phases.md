@@ -201,3 +201,17 @@ OpenAPI docs
 security review
 ✓
 Final gate (all 5 MVP acceptance criteria): Full system passes acceptance test suite. Security review signed off. Deployed MVP environment live.
+
+
+
+# Test Auth Flow
+docker exec -it tip-api pytest tests/test_phase0_auth.py -v
+
+# Test Indicator Ingestion Flow
+docker exec -it tip-api pytest tests/test_phase1_ingestion.py -v
+
+# Test Sources CRUD Flow
+docker exec -it tip-api pytest tests/test_phase1_sources.py -v
+
+# Test Intelligence, Scoring & Correlation Engine
+docker exec -it tip-api pytest tests/test_phase2_intelligence.py -v

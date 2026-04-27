@@ -18,7 +18,7 @@ class TestIngestHappyPath:
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
         ip = f"1.2.3.{uuid.uuid4().int % 255}"
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "ipv4", "value": ip}]
         })
@@ -32,7 +32,7 @@ class TestIngestHappyPath:
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
         u = uuid.uuid4().hex[:6]
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [
                 {"type": "ipv4",   "value": f"{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}"},
@@ -52,7 +52,7 @@ class TestIngestHappyPath:
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
         ip = f"192.168.100.{uuid.uuid4().int % 255}"
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "ipv4", "value": ip}]
         })
@@ -70,7 +70,7 @@ class TestIngestHappyPath:
     ):
         """Initial confidence must be 0 — scoring is async, never set at ingestion."""
         ip = f"44.44.44.{uuid.uuid4().int % 255}"
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "ipv4", "value": ip}]
         })
@@ -81,7 +81,7 @@ class TestIngestHappyPath:
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
         domain = f"new-active-{uuid.uuid4().hex[:6]}.com"
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "domain", "value": domain}]
         })
@@ -102,8 +102,8 @@ class TestDeduplication:
             "source_id": created_source["id"],
             "indicators": [{"type": "ipv4", "value": ip}]
         }
-        await client.post("/api/v1/indicators/", headers=admin_headers, json=payload)
-        resp2 = await client.post("/api/v1/indicators/", headers=admin_headers, json=payload)
+        await client.post("/api/v1/indicators", headers=admin_headers, json=payload)
+        resp2 = await client.post("/api/v1/indicators", headers=admin_headers, json=payload)
         body = resp2.json()
         assert body["duplicates"] == 1
         assert body["ingested"] == 0
@@ -117,8 +117,8 @@ class TestDeduplication:
             "source_id": created_source["id"],
             "indicators": [{"type": "ipv4", "value": ip}]
         }
-        r1 = await client.post("/api/v1/indicators/", headers=admin_headers, json=payload)
-        r2 = await client.post("/api/v1/indicators/", headers=admin_headers, json=payload)
+        r1 = await client.post("/api/v1/indicators", headers=admin_headers, json=payload)
+        r2 = await client.post("/api/v1/indicators", headers=admin_headers, json=payload)
 
         id_first = r1.json()["indicators"][0]["id"]
         id_second = r2.json()["indicators"][0]["id"]
@@ -130,12 +130,12 @@ class TestDeduplication:
         # First: ingest one indicator
         ip = f"99.99.99.{uuid.uuid4().int % 255}"
         ip_new = f"100.100.100.{uuid.uuid4().int % 255}"
-        await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "ipv4", "value": ip}]
         })
         # Second: ingest same + one new
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [
                 {"type": "ipv4", "value": ip},   # duplicate
@@ -158,11 +158,11 @@ class TestNormalization:
     ):
         """hxxp://evil.com/path and http://evil.com/path = same canonical indicator."""
         source_id = created_source["id"]
-        await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": source_id,
             "indicators": [{"type": "url", "value": "http://defang-test.com/path"}]
         })
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": source_id,
             "indicators": [{"type": "url", "value": "hxxp://defang-test.com/path"}]
         })
@@ -173,11 +173,11 @@ class TestNormalization:
     ):
         source_id = created_source["id"]
         u = uuid.uuid4().hex[:6]
-        await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": source_id,
             "indicators": [{"type": "url", "value": f"http://bracket-{u}.com/gate"}]
         })
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": source_id,
             "indicators": [{"type": "url", "value": f"hxxp://bracket-{u}[.]com/gate"}]
         })
@@ -187,11 +187,11 @@ class TestNormalization:
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
         source_id = created_source["id"]
-        await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": source_id,
             "indicators": [{"type": "domain", "value": "evil-domain.com"}]
         })
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": source_id,
             "indicators": [{"type": "domain", "value": "EVIL-DOMAIN.COM"}]
         })
@@ -201,11 +201,11 @@ class TestNormalization:
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
         source_id = created_source["id"]
-        await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": source_id,
             "indicators": [{"type": "url", "value": "http://schema-test.com/path"}]
         })
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": source_id,
             "indicators": [{"type": "url", "value": "https://schema-test.com/path"}]
         })
@@ -217,11 +217,11 @@ class TestNormalization:
         source_id = created_source["id"]
         hash_lower = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         hash_upper = hash_lower.upper()
-        await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": source_id,
             "indicators": [{"type": "sha256", "value": hash_lower}]
         })
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": source_id,
             "indicators": [{"type": "sha256", "value": hash_upper}]
         })
@@ -231,7 +231,7 @@ class TestNormalization:
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
         """Path must not be stripped — /gate.php?id=1 must be stored."""
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "url", "value": "http://c2server.com/gate.php?id=999"}]
         })
@@ -245,11 +245,11 @@ class TestNormalization:
         """evil.com:8080/path and evil.com/path are different indicators."""
         source_id = created_source["id"]
         u = uuid.uuid4().hex[:6]
-        r1 = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        r1 = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": source_id,
             "indicators": [{"type": "url", "value": f"http://port-test-{u}.com/path"}]
         })
-        r2 = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        r2 = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": source_id,
             "indicators": [{"type": "url", "value": f"http://port-test-{u}.com:8080/path"}]
         })
@@ -265,7 +265,7 @@ class TestValidation:
     async def test_invalid_ipv4_reported_as_error(
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "ipv4", "value": "999.999.999.999"}]
         })
@@ -278,7 +278,7 @@ class TestValidation:
     async def test_invalid_md5_wrong_length(
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "md5", "value": "tooshort"}]
         })
@@ -287,7 +287,7 @@ class TestValidation:
     async def test_invalid_sha256_wrong_length(
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "sha256", "value": "abc123"}]
         })
@@ -296,7 +296,7 @@ class TestValidation:
     async def test_invalid_sha1_non_hex(
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "sha1", "value": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"}]
         })
@@ -309,7 +309,7 @@ class TestValidation:
         # First: ingest one indicator
         ip = f"55.55.55.{uuid.uuid4().int % 255}"
         domain = f"valid-{uuid.uuid4().hex[:6]}.net"
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [
                 {"type": "ipv4", "value": ip},                    # valid
@@ -326,7 +326,7 @@ class TestValidation:
     async def test_error_detail_contains_raw_value(
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": [{"type": "ipv4", "value": "bad-ip-value"}]
         })
@@ -338,7 +338,7 @@ class TestValidation:
     async def test_empty_indicators_list(
         self, client: AsyncClient, admin_headers: dict, created_source: dict
     ):
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": created_source["id"],
             "indicators": []
         })
@@ -349,7 +349,7 @@ class TestValidation:
     async def test_nonexistent_source_id_returns_error(
         self, client: AsyncClient, admin_headers: dict
     ):
-        resp = await client.post("/api/v1/indicators/", headers=admin_headers, json={
+        resp = await client.post("/api/v1/indicators", headers=admin_headers, json={
             "source_id": "00000000-0000-0000-0000-000000000000",
             "indicators": [{"type": "ipv4", "value": "1.2.3.4"}]
         })
@@ -367,7 +367,7 @@ class TestFileUpload:
         ip = f"11.22.33.{uuid.uuid4().int % 255}"
         domain = f"csv-up-{uuid.uuid4().hex[:6]}.com"
         csv_content = f"type,value\nipv4,{ip}\ndomain,{domain}\n".encode()
-        resp = await client.post("/api/v1/indicators/",
+        resp = await client.post("/api/v1/indicators",
             headers=admin_headers,
             data={"source_id": created_source["id"]},
             files={"file": ("test.csv", io.BytesIO(csv_content), "text/csv")}
@@ -387,7 +387,7 @@ class TestFileUpload:
             "ipv4,not_valid_ip\n"
             f"domain,{domain}\n"
         ).encode('utf-8')
-        resp = await client.post("/api/v1/indicators/",
+        resp = await client.post("/api/v1/indicators",
             headers=admin_headers,
             data={"source_id": created_source["id"]},
             files={"file": ("mixed.csv", io.BytesIO(csv_content), "text/csv")}
@@ -402,7 +402,7 @@ class TestFileUpload:
         ip1 = f"{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}"
         ip2 = f"{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}.{uuid.uuid4().int % 255}"
         txt_content = f"{ip1}\n{ip2}\nbad-line!!!\n".encode('utf-8')
-        resp = await client.post("/api/v1/indicators/",
+        resp = await client.post("/api/v1/indicators",
             headers=admin_headers,
             data={"source_id": created_source["id"]},
             files={"file": ("indicators.txt", io.BytesIO(txt_content), "text/plain")}
@@ -415,7 +415,7 @@ class TestFileUpload:
     ):
         """CSV and JSON ingestion must produce identical response shapes."""
         csv_content = b"type,value\nipv4,33.44.55.66\n"
-        resp = await client.post("/api/v1/indicators/",
+        resp = await client.post("/api/v1/indicators",
             headers=admin_headers,
             data={"source_id": created_source["id"]},
             files={"file": ("schema.csv", io.BytesIO(csv_content), "text/csv")}

@@ -952,24 +952,22 @@ a row into AUDIT_LOGS. This is a compliance requirement, not optional.
 ## 15. Current Build State
 
 Update this section at the end of every session.
-# Phase 1 — Ingestion [x] Done
+# Phase 3 — Analyst UI [/] In progress
 
-- [x] 1.1 Source CRUD API (Full RBAC + DELETE)
-- [x] 1.2 Full Validator & Normalizer
-- [x] 1.3 POST /api/v1/indicators (CSV/TXT/JSON + Redis Events)
-- [x] 1.4 Scheduled HTTP Feed Puller (Celery Beat)
-- [x] 1.5 Ingestion integration tests
+- [x] 3.1 Indicator query API
+- [x] 3.2 Analyst action API endpoints
+- [x] 3.3 React app scaffold + auth
 
 ```
 Phase 0 — Foundation:        [x] Done
 Phase 1 — Ingestion:         [x] Done
-Phase 2 — Intelligence:      [/] In progress
-Phase 3 — Analyst UI:        [ ] Not started
+Phase 2 — Intelligence:      [x] Done
+Phase 3 — Analyst UI:        [/] In progress
 Phase 4 — Export/Hardening:  [ ] Not started
 
-Last completed step: 1.5 — Ingestion Integration Tests
-Last completed at:  2026-04-18
-Next step:          2.1 — Enrichment Router (Phase 2)
+Last completed step: 3.3 — React app scaffold + auth
+Last completed at:  2026-04-22
+Next step:          3.4 — Indicator List UI (Phase 3)
 Known issues:       None yet
 ```
 

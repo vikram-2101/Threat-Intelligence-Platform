@@ -1,8 +1,9 @@
 import uuid
 import structlog
+from datetime import datetime, timezone
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func
 from app.models.evidence import Evidence, EvidenceType
 from app.core.redis import redis_manager
 
@@ -127,9 +128,9 @@ class CorrelationService:
     async def check_multi_source_sighting(cls, db: AsyncSession, indicator_id: uuid.UUID) -> None:
         """
         Count DISTINCT source_ids, delta = source_count × 3.
-        Replaces previous MULTI_SOURCE_SIGHTING for this indicator.
+        Per Agent.md §4.4 — append-only: reverses any previous MULTI_SOURCE_SIGHTING
+        evidence row and inserts a fresh one with the updated delta.
         """
-        # Count distinct sources (excluding system-generated ones if necessary, but here we count all enrichment sources)
         sources_q = await db.execute(
             select(func.count(Evidence.source_id.distinct())).where(
                 Evidence.indicator_id == indicator_id,
@@ -137,23 +138,35 @@ class CorrelationService:
             )
         )
         source_count = sources_q.scalar_one() or 0
-        
+
         if source_count > 1:
             delta = source_count * 3.0
-            
-            # Remove existing MULTI_SOURCE_SIGHTING
-            await db.execute(
-                delete(Evidence).where(
+
+            # Reverse any existing MULTI_SOURCE_SIGHTING rows (append-only rule)
+            existing_q = await db.execute(
+                select(Evidence).where(
                     Evidence.indicator_id == indicator_id,
-                    Evidence.evidence_type == EvidenceType.MULTI_SOURCE_SIGHTING
+                    Evidence.evidence_type == EvidenceType.MULTI_SOURCE_SIGHTING,
+                    Evidence.reversed == False,
                 )
             )
-            
-            logger.info("multi_source_sighting_recorded", indicator_id=str(indicator_id), count=source_count, delta=delta)
+            existing_rows = existing_q.scalars().all()
+            now = datetime.now(timezone.utc)
+            for row in existing_rows:
+                row.reversed = True
+                row.reversed_at = now
+
+            logger.info(
+                "multi_source_sighting_recorded",
+                indicator_id=str(indicator_id),
+                count=source_count,
+                delta=delta,
+            )
             db.add(Evidence(
                 indicator_id=indicator_id,
                 evidence_type=EvidenceType.MULTI_SOURCE_SIGHTING,
                 confidence_delta=delta,
                 raw_payload={"source_count": source_count},
-                reversible=False
+                reversible=False,
             ))
+
