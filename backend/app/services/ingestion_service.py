@@ -41,17 +41,37 @@ class IngestionService:
         indicators_out = []
         new_count = 0
         dup_count = 0
-        
-        # 2. Process Valid Indicators
-        for item in validation_res.valid:
-            # Find existing by canonical (type, value)
-            result = await db.execute(
-                select(Indicator).where(
-                    Indicator.type == item.type,
-                    Indicator.value == item.normalized
+
+        # 2. Pre-fetch existing indicators in one single query
+        valid_items = validation_res.valid
+        valid_keys = [(item.type, item.normalized) for item in valid_items]
+
+        existing_indicators = {}
+        if valid_keys:
+            from sqlalchemy import or_
+            clause = or_(*((Indicator.type == t) & (Indicator.value == v) for t, v in valid_keys))
+            res = await db.execute(select(Indicator).where(clause))
+            for ind in res.scalars().all():
+                existing_indicators[(ind.type, ind.value)] = ind
+
+        # Pre-fetch existing IndicatorSource links
+        existing_links = set()
+        if existing_indicators:
+            res_links = await db.execute(
+                select(IndicatorSource.indicator_id).where(
+                    IndicatorSource.indicator_id.in_([ind.id for ind in existing_indicators.values()]),
+                    IndicatorSource.source_id == source_obj.id
                 )
             )
-            indicator = result.scalar_one_or_none()
+            existing_links = {r for r in res_links.scalars().all()}
+        
+        import asyncio
+        publish_tasks = []
+
+        # 3. Process Valid Indicators
+        for item in valid_items:
+            # Find existing from local map
+            indicator = existing_indicators.get((item.type, item.normalized))
             
             if not indicator:
                 indicator = Indicator(
@@ -61,20 +81,13 @@ class IngestionService:
                 )
                 db.add(indicator)
                 await db.flush()  # Generate ID
+                existing_indicators[(item.type, item.normalized)] = indicator
                 new_count += 1
             else:
                 dup_count += 1
             
-            # 3. Update Indicator-Source Link
-            # We use the relationship objects for better session management
-            res_link = await db.execute(
-                select(IndicatorSource).where(
-                    IndicatorSource.indicator_id == indicator.id,
-                    IndicatorSource.source_id == source_obj.id
-                )
-            )
-            link = res_link.scalar_one_or_none()
-            if not link:
+            # 4. Update Indicator-Source Link
+            if indicator.id not in existing_links:
                 link = IndicatorSource(
                     indicator=indicator,
                     source=source_obj,
@@ -82,21 +95,17 @@ class IngestionService:
                     last_reported_at=datetime.now(timezone.utc)
                 )
                 db.add(link)
-            else:
-                link.last_reported_at = datetime.now(timezone.utc)
+                existing_links.add(indicator.id)
             
-            # 4. Emit Redis Event (PUBLISH per Phase 1.3 spec)
-            # indicator.created triggers EnrichmentWorker, which creates Evidence rows.
-            # No evidence is created at ingestion time — confidence starts at 0.
-            # This allows external consumers and the Correlation Engine to react in real-time
-            await publish_indicator_created(
-                indicator_id=str(indicator.id),
-                itype=indicator.type.value,
-                value=indicator.value
+            # 5. Add Redis Event Task to list
+            publish_tasks.append(
+                publish_indicator_created(
+                    indicator_id=str(indicator.id),
+                    itype=indicator.type.value,
+                    value=indicator.value
+                )
             )
             
-            # Convert ORM model to Pydantic Response DTO immediately while session is active
-            # This prevents any downstream "Lazy Loading" errors in the async path.
             dto = IndicatorResponse(
                 id=indicator.id,
                 type=indicator.type,
@@ -113,6 +122,10 @@ class IngestionService:
 
         await db.commit()
         
+        if publish_tasks:
+            # Emit Redis events in parallel after DB commit
+            await asyncio.gather(*publish_tasks)
+
         return IngestionResponse(
             ingested=new_count,
             duplicates=dup_count,
@@ -120,3 +133,4 @@ class IngestionService:
             error_details=validation_res.invalid,
             indicators=indicators_out
         )
+
