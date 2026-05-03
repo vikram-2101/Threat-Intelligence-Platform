@@ -10,17 +10,14 @@ import {
   RefreshCw, 
   Eye, 
   AlertTriangle, 
-  Lock, 
   Clock, 
-  CheckCircle,
   Cpu,
   Zap,
   ChevronDown,
   Cloud,
-  ChevronRight,
-  Sparkles,
   Link as LinkIcon
 } from 'lucide-react'
+
 
 function TiltCard({ children, borderHoverClass, shadowHoverClass }: { children: React.ReactNode, borderHoverClass: string, shadowHoverClass: string }) {
   const [rotateX, setRotateX] = useState(0)
@@ -71,7 +68,7 @@ function TiltCard({ children, borderHoverClass, shadowHoverClass }: { children: 
 
 export function LandingPage() {
   const navigate = useNavigate()
-  const [activeStep, setActiveStep] = useState(0)
+
   
   // Dynamic typing-like fade effects for raw feed to enriched intelligence in hero
   const [heroTextIndex, setHeroTextIndex] = useState(0)

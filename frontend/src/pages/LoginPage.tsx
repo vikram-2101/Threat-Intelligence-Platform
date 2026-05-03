@@ -8,7 +8,7 @@
 import React, { useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
-import { Shield, Lock, User, Eye, EyeOff, AlertCircle, Loader2, Sparkles, CheckCircle, ArrowLeft } from 'lucide-react'
+import { Shield, Lock, User, Eye, EyeOff, AlertCircle, Loader2, CheckCircle, ArrowLeft } from 'lucide-react'
 import { login } from '@/api/auth'
 import { useAuth } from '@/contexts/AuthContext'
 import { PageErrorBoundary } from '@/components/PageErrorBoundary'
