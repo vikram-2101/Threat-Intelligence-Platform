@@ -10,6 +10,8 @@ import { IndicatorDetailPage } from '@/pages/IndicatorDetailPage'
 import { SourcesPage } from '@/pages/SourcesPage'
 import { IngestPage } from '@/pages/IngestPage'
 
+import { LandingPage } from '@/pages/LandingPage'
+
 // Configure TanStack Query
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,11 +27,14 @@ const queryClient = new QueryClient({
 // Configure React Router
 const router = createBrowserRouter([
   {
+    path: '/',
+    element: <LandingPage />,
+  },
+  {
     path: '/login',
     element: <LoginPage />,
   },
   {
-    path: '/',
     element: (
       <RequireAuth>
         <AppShell />
@@ -37,30 +42,26 @@ const router = createBrowserRouter([
     ),
     children: [
       {
-        index: true,
-        element: <Navigate to="/indicators" replace />,
-      },
-      {
-        path: 'indicators',
+        path: '/indicators',
         element: <IndicatorsPage />,
       },
       {
-        path: 'indicators/:id',
+        path: '/indicators/:id',
         element: <IndicatorDetailPage />,
       },
       {
-        path: 'ingest',
+        path: '/ingest',
         element: <IngestPage />,
       },
       {
-        path: 'sources',
+        path: '/sources',
         element: <SourcesPage />,
       },
-      {
-        path: '*',
-        element: <Navigate to="/indicators" replace />,
-      },
     ],
+  },
+  {
+    path: '*',
+    element: <Navigate to="/" replace />,
   },
 ])
 
