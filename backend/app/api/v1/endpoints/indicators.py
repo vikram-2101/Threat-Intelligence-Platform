@@ -218,7 +218,10 @@ async def delete_indicators(
     """
     Delete all indicators. This also deletes all linked evidence, snapshots, and sources.
     """
-    from app.models.indicator import Indicator, IndicatorSource, Evidence, ConfidenceSnapshot
+    from app.models.indicator import Indicator, IndicatorSource
+    from app.models.evidence import Evidence
+    from app.models.confidence_snapshot import ConfidenceSnapshot
+
     await db.execute(delete(IndicatorSource))
     await db.execute(delete(Evidence))
     await db.execute(delete(ConfidenceSnapshot))
@@ -235,13 +238,17 @@ async def delete_indicator(
     """
     Delete a specific indicator.
     """
-    from app.models.indicator import Indicator, IndicatorSource, Evidence, ConfidenceSnapshot
+    from app.models.indicator import Indicator, IndicatorSource
+    from app.models.evidence import Evidence
+    from app.models.confidence_snapshot import ConfidenceSnapshot
+
     await db.execute(delete(IndicatorSource).where(IndicatorSource.indicator_id == indicator_id))
     await db.execute(delete(Evidence).where(Evidence.indicator_id == indicator_id))
     await db.execute(delete(ConfidenceSnapshot).where(ConfidenceSnapshot.indicator_id == indicator_id))
     await db.execute(delete(Indicator).where(Indicator.id == indicator_id))
     await db.commit()
     return
+
 
 
 # ── GET /{id}  (full detail) ───────────────────────────────────────────────────
