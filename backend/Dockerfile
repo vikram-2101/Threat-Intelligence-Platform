@@ -28,7 +28,10 @@ RUN groupadd -r celery && useradd -r -g celery -d /app -s /sbin/nologin celery
 # Copy the rest of the code
 COPY --chown=celery:celery . .
 
+# Grant execute permissions for start script before user switch
+USER root
+RUN chmod +x ./start.sh
 USER celery
 
-# Default command for the API service
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Default command for the API service on Render
+CMD ["./start.sh"]
