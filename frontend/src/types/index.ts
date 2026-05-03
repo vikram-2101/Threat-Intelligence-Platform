@@ -150,9 +150,13 @@ export interface Source {
   intent_description: string | null
   pull_url: string | null
   pull_schedule: string | null
+  last_pull_at: string | null
+  last_pull_status: string | null
+  last_pull_error: string | null
   is_active: boolean
   created_at: string
 }
+
 
 /** Mirrors backend SourceCreate (SourceBase) */
 export interface SourceCreate {
