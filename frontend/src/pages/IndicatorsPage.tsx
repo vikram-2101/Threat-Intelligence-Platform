@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { List, Search, AlertCircle, Loader2, FilterX } from 'lucide-react'
+import { List, Search, AlertCircle, Loader2, FilterX, Trash2 } from 'lucide-react'
 import { clsx } from 'clsx'
+import toast from 'react-hot-toast'
 
-import { getIndicators } from '@/api/indicators'
+import { getIndicators, clearIndicators } from '@/api/indicators'
 import { PageErrorBoundary } from '@/components/PageErrorBoundary'
 import { TypeBadge } from '@/components/TypeBadge'
 import { StatusBadge } from '@/components/StatusBadge'
@@ -12,6 +13,7 @@ import { ConfidenceBadge } from '@/components/ConfidenceBadge'
 import { Pagination } from '@/components/Pagination'
 import { RangeSlider } from '@/components/RangeSlider'
 import { useDebounce } from '@/hooks/useDebounce'
+
 import type { IndicatorFilters, IndicatorType, IndicatorStatus } from '@/types'
 
 const indicatorTypes: IndicatorType[] = ['IPV4', 'IPV6', 'DOMAIN', 'URL', 'MD5', 'SHA1', 'SHA256']
@@ -50,6 +52,20 @@ function IndicatorsContent() {
     placeholderData: (prev) => prev, // keeps previous data while fetching new to prevent flicker
   })
 
+  const queryClient = useQueryClient()
+
+  const clearMutation = useMutation({
+    mutationFn: () => clearIndicators(),
+    onSuccess: () => {
+      toast.success('All indicators cleared successfully')
+      queryClient.invalidateQueries({ queryKey: ['indicators'] })
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      toast.error(`Failed to clear indicators: ${msg}`)
+    },
+  })
+
   const resetFilters = () => {
     setSearchValue('')
     setSearchSource('')
@@ -64,13 +80,28 @@ function IndicatorsContent() {
           <List className="w-6 h-6 text-brand-400 opacity-80" />
           <h1 className="text-xl font-bold text-slate-100 tracking-tight">Indicators</h1>
         </div>
-        <button onClick={resetFilters} className="btn-ghost text-xs">
-          <FilterX className="w-4 h-4" /> Reset Filters
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={resetFilters} className="btn-ghost text-xs">
+            <FilterX className="w-4 h-4" /> Reset Filters
+          </button>
+          <button
+            onClick={() => {
+              if (window.confirm('Are you sure you want to completely delete all indicators? This action cannot be undone.')) {
+                clearMutation.mutate()
+              }
+            }}
+            disabled={clearMutation.isPending}
+            className="btn-danger flex items-center gap-2 text-xs py-1 px-3 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 rounded"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {clearMutation.isPending ? 'Clearing...' : 'Clear All'}
+          </button>
+        </div>
       </div>
 
       {/* Filter Bar */}
       <div className="card p-4 shrink-0 shadow-md flex flex-col lg:flex-row gap-4 items-end">
+
         <div className="flex-1 w-full relative">
           <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">Value</label>
           <Search className="absolute left-3 top-[28px] w-4 h-4 text-slate-500" />

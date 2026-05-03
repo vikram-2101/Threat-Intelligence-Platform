@@ -60,9 +60,11 @@ class IndicatorParser:
         lines = content.strip().splitlines()
         indicators = []
         for line in lines:
-            if val := line.strip():
+            val = line.strip()
+            if val and not val.startswith("#"):
                 indicators.append(IndicatorParser.smart_detect(val))
         return indicators
+
 
     @staticmethod
     def smart_detect(value: str) -> Tuple[IndicatorType, str]:

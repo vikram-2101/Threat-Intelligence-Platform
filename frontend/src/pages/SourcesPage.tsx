@@ -67,15 +67,15 @@ function SourceFormModal({ isOpen, editTarget, onClose }: SourceFormModalProps) 
   const [form, setForm] = useState<SourceCreate>(() =>
     editTarget
       ? {
-          name: editTarget.name,
-          category: editTarget.category,
-          trust_tier: editTarget.trust_tier,
-          default_weight: editTarget.default_weight,
-          intent_description: editTarget.intent_description ?? '',
-          pull_url: editTarget.pull_url ?? '',
-          pull_schedule: editTarget.pull_schedule ?? '',
-          is_active: editTarget.is_active,
-        }
+        name: editTarget.name,
+        category: editTarget.category,
+        trust_tier: editTarget.trust_tier,
+        default_weight: editTarget.default_weight,
+        intent_description: editTarget.intent_description ?? '',
+        pull_url: editTarget.pull_url ?? '',
+        pull_schedule: editTarget.pull_schedule ?? '',
+        is_active: editTarget.is_active,
+      }
       : emptyForm()
   )
 
@@ -84,15 +84,15 @@ function SourceFormModal({ isOpen, editTarget, onClose }: SourceFormModalProps) 
     setForm(
       target
         ? {
-            name: target.name,
-            category: target.category,
-            trust_tier: target.trust_tier,
-            default_weight: target.default_weight,
-            intent_description: target.intent_description ?? '',
-            pull_url: target.pull_url ?? '',
-            pull_schedule: target.pull_schedule ?? '',
-            is_active: target.is_active,
-          }
+          name: target.name,
+          category: target.category,
+          trust_tier: target.trust_tier,
+          default_weight: target.default_weight,
+          intent_description: target.intent_description ?? '',
+          pull_url: target.pull_url ?? '',
+          pull_schedule: target.pull_schedule ?? '',
+          is_active: target.is_active,
+        }
         : emptyForm()
     )
   }
@@ -397,7 +397,7 @@ function SourcesContent() {
                 <th className="px-4 py-3 font-medium">Trust Tier</th>
                 <th className="px-4 py-3 font-medium text-center">Weight</th>
                 <th className="px-4 py-3 font-medium text-center">Status</th>
-                <th className="px-4 py-3 font-medium hidden lg:table-cell">Created</th>
+                <th className="px-4 py-3 font-medium">Feed Info</th>
                 <th className="px-4 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
@@ -445,9 +445,29 @@ function SourcesContent() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-500 hidden lg:table-cell whitespace-nowrap">
-                    {new Date(src.created_at).toLocaleDateString()}
+                  <td className="px-4 py-3 text-xs whitespace-nowrap">
+                    {src.pull_url ? (
+                      <div className="flex flex-col gap-0.5 text-[11px]">
+                        <span className="text-slate-300 font-mono max-w-[120px] truncate" title={src.pull_url}>
+                          {src.pull_url}
+                        </span>
+                        {src.pull_schedule && (
+                          <span className="text-slate-500 font-mono">📅 {src.pull_schedule}</span>
+                        )}
+                        {src.last_pull_status && (
+                          <span className={clsx(
+                            "text-[10px] font-semibold mt-0.5",
+                            src.last_pull_status.includes("success") ? "text-green-400" : "text-amber-400"
+                          )}>
+                            Last Status: {src.last_pull_status}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-slate-600 italic">None</span>
+                    )}
                   </td>
+
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button

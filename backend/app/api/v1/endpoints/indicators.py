@@ -13,7 +13,7 @@ from typing import Optional, List
 import math
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Request, UploadFile
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -157,11 +157,36 @@ async def list_indicators(
     )
     indicators = rows_q.scalars().all()
 
-    # ── Build response items (N+1-safe: batch sub-queries) ───────────────────
+    # Optimized batch queries
+    indicator_ids = [ind.id for ind in indicators]
+    sources_by_ind = {}
+    rationale_by_ind = {}
+
+    if indicator_ids:
+        # Fetch source names
+        sources_q = await db.execute(
+            select(IndicatorSource.indicator_id, Source.name)
+            .join(Source, Source.id == IndicatorSource.source_id)
+            .where(IndicatorSource.indicator_id.in_(indicator_ids))
+        )
+        for ind_id, src_name in sources_q.all():
+            sources_by_ind.setdefault(ind_id, []).append(src_name)
+
+        # Fetch latest rationales
+        snapshots_q = await db.execute(
+            select(ConfidenceSnapshot)
+            .where(ConfidenceSnapshot.indicator_id.in_(indicator_ids))
+            .order_by(ConfidenceSnapshot.calculated_at.desc())
+        )
+        for snap in snapshots_q.scalars().all():
+            if snap.indicator_id not in rationale_by_ind:
+                rationale_by_ind[snap.indicator_id] = snap.reason_summary
+
+    # ── Build response items (N+1 optimized) ───────────────────
     items: List[IndicatorListItem] = []
     for ind in indicators:
-        source_names = await _fetch_source_names(db, ind.id)
-        latest_rationale = await _fetch_latest_rationale(db, ind.id)
+        source_names = sources_by_ind.get(ind.id, [])
+        latest_rationale = rationale_by_ind.get(ind.id)
 
         items.append(IndicatorListItem(
             id=ind.id,
@@ -180,14 +205,49 @@ async def list_indicators(
 
     return PaginatedIndicatorResponse(
         data=items,
+
         meta=PaginatedMeta(total=total, page=page, limit=limit, pages=pages),
         errors=[],
     )
 
 
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_indicators(
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Delete all indicators. This also deletes all linked evidence, snapshots, and sources.
+    """
+    from app.models.indicator import Indicator, IndicatorSource, Evidence, ConfidenceSnapshot
+    await db.execute(delete(IndicatorSource))
+    await db.execute(delete(Evidence))
+    await db.execute(delete(ConfidenceSnapshot))
+    await db.execute(delete(Indicator))
+    await db.commit()
+    return
+
+
+@router.delete("/{indicator_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_indicator(
+    indicator_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Delete a specific indicator.
+    """
+    from app.models.indicator import Indicator, IndicatorSource, Evidence, ConfidenceSnapshot
+    await db.execute(delete(IndicatorSource).where(IndicatorSource.indicator_id == indicator_id))
+    await db.execute(delete(Evidence).where(Evidence.indicator_id == indicator_id))
+    await db.execute(delete(ConfidenceSnapshot).where(ConfidenceSnapshot.indicator_id == indicator_id))
+    await db.execute(delete(Indicator).where(Indicator.id == indicator_id))
+    await db.commit()
+    return
+
+
 # ── GET /{id}  (full detail) ───────────────────────────────────────────────────
 
 @router.get("/{indicator_id}", response_model=IndicatorResponse)
+
 async def get_indicator(
     indicator_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),

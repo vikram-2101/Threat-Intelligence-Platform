@@ -101,3 +101,18 @@ export const adjustTTL = async (
   })
   return data
 }
+
+/**
+ * DELETE /api/v1/indicators/{id}
+ */
+export const deleteIndicator = async (id: string): Promise<void> => {
+  await api.delete(`indicators/${id}`)
+}
+
+/**
+ * DELETE /api/v1/indicators
+ */
+export const clearIndicators = async (): Promise<void> => {
+  await api.delete('indicators')
+}
+
