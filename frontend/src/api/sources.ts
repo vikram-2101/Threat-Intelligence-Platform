@@ -40,3 +40,10 @@ export const updateSource = async (id: string, payload: SourceUpdate): Promise<S
 export const deleteSource = async (id: string): Promise<void> => {
   await api.delete(`sources/${id}`)
 }
+
+/** POST /api/v1/sources/{id}/pull — manually pull a source feed */
+export const pullSource = async (id: string): Promise<{ message: string; ingested: number }> => {
+  const { data } = await api.post<{ message: string; ingested: number }>(`sources/${id}/pull`)
+  return data
+}
+

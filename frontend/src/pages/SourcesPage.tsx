@@ -9,11 +9,11 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Database, Plus, Pencil, Trash2, CheckCircle2, XCircle, ShieldCheck, Loader2 } from 'lucide-react'
+import { Database, Plus, Pencil, Trash2, CheckCircle2, XCircle, ShieldCheck, Loader2, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { clsx } from 'clsx'
 
-import { getSources, createSource, updateSource, deleteSource } from '@/api/sources'
+import { getSources, createSource, updateSource, deleteSource, pullSource } from '@/api/sources'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { PageErrorBoundary } from '@/components/PageErrorBoundary'
 import type { Source, SourceCreate, SourceUpdate, SourceCategory, TrustTier } from '@/types'
@@ -470,6 +470,9 @@ function SourcesContent() {
 
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
+                      {src.pull_url && (
+                        <PullButton sourceId={src.id} />
+                      )}
                       <button
                         title="Edit source"
                         onClick={() => openEdit(src)}
@@ -486,6 +489,7 @@ function SourcesContent() {
                       </button>
                     </div>
                   </td>
+
                 </tr>
               ))}
 
@@ -530,6 +534,33 @@ function SourcesContent() {
   )
 }
 
+function PullButton({ sourceId }: { sourceId: string }) {
+  const queryClient = useQueryClient()
+  const mutation = useMutation({
+    mutationFn: () => pullSource(sourceId),
+    onSuccess: (data) => {
+      toast.success(data.message || `Pulled successfully! ${data.ingested} new indicators.`)
+      queryClient.invalidateQueries({ queryKey: ['sources'] })
+      queryClient.invalidateQueries({ queryKey: ['indicators'] })
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      toast.error(`Failed to pull feed: ${msg}`)
+    },
+  })
+
+  return (
+    <button
+      title="Pull feed now"
+      onClick={() => mutation.mutate()}
+      disabled={mutation.isPending}
+      className="p-1.5 rounded text-slate-500 hover:text-green-400 hover:bg-green-500/10 transition-colors disabled:opacity-50"
+    >
+      <RefreshCw className={clsx("w-3.5 h-3.5", mutation.isPending && "animate-spin")} />
+    </button>
+  )
+}
+
 export function SourcesPage() {
   return (
     <PageErrorBoundary>
@@ -537,3 +568,4 @@ export function SourcesPage() {
     </PageErrorBoundary>
   )
 }
+
