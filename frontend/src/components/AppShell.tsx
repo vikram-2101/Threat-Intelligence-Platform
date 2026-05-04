@@ -3,7 +3,7 @@
  * Contains the left sidebar navigation and top header.
  */
 
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { Shield, List, Database, LogOut, Activity, Bell, UploadCloud } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { clsx } from 'clsx'
@@ -16,6 +16,12 @@ const navItems = [
 
 export function AppShell() {
   const { logout } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface-900">
@@ -56,7 +62,7 @@ export function AppShell() {
         {/* Bottom actions */}
         <div className="p-2 border-t border-slate-700/50">
           <button
-            onClick={logout}
+            onClick={handleLogout}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium
                        text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150"
           >
