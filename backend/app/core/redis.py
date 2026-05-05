@@ -5,7 +5,12 @@ from app.core.config import settings
 
 class RedisManager:
     def __init__(self, url: str):
-        self.client = Redis.from_url(url, decode_responses=True)
+        self.client = Redis.from_url(
+            url, 
+            decode_responses=True,
+            socket_timeout=5.0,
+            socket_connect_timeout=5.0
+        )
 
     async def publish_event(self, channel: str, message: Dict[str, Any]) -> None:
         """

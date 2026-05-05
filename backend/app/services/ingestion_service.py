@@ -66,6 +66,9 @@ class IngestionService:
             existing_links = {r for r in res_links.scalars().all()}
         
         import asyncio
+        import logging
+        logger = logging.getLogger(__name__)
+        
         publish_tasks = []
 
         # 3. Process Valid Indicators
@@ -89,8 +92,8 @@ class IngestionService:
             # 4. Update Indicator-Source Link
             if indicator.id not in existing_links:
                 link = IndicatorSource(
-                    indicator=indicator,
-                    source=source_obj,
+                    indicator_id=indicator.id,
+                    source_id=source_obj.id,
                     first_reported_at=datetime.now(timezone.utc),
                     last_reported_at=datetime.now(timezone.utc)
                 )
@@ -123,8 +126,10 @@ class IngestionService:
         await db.commit()
         
         if publish_tasks:
-            # Emit Redis events in parallel after DB commit
-            await asyncio.gather(*publish_tasks)
+            # Emit Redis events in background after DB commit
+            # This ensures the API response is not blocked by Redis latency
+            for task_coro in publish_tasks:
+                asyncio.create_task(task_coro)
 
         return IngestionResponse(
             ingested=new_count,
